@@ -105,6 +105,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render PDF visually
         renderPDF(file);
 
+        // Check if user is logged in
+        let headers = {};
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                alert("You must be logged in to analyze a document and save it to your history.");
+                if (typeof loginModal !== 'undefined' && loginModal) {
+                    loginModal.style.display = 'flex';
+                }
+                return;
+            }
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
         // Send to backend for NLP Analysis
         const formData = new FormData();
         formData.append('pdf', file);
@@ -112,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/upload', {
                 method: 'POST',
+                headers: headers,
                 body: formData
             });
 
@@ -122,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.analysis) {
                 updateDashboard(data.analysis);
+                fetchHistory(); // Refresh history list immediately
             }
         } catch (error) {
             console.error("Error analyzing PDF:", error);
@@ -162,10 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="metric-tag">Relevance Score: ${score}</span>
                         </div>
                         <p class="claim-text">${claimObj.claim}</p>
-                        <p class="subtext" style="margin-bottom: 1rem; font-style: italic;">"${claimObj.evidence_quote}"</p>
-                        <button class="gradient-btn outline locate-btn" data-quote="${encodeURIComponent(claimObj.evidence_quote)}">
-                            <i data-lucide="target"></i> Locate in PDF
-                        </button>
                     </div>
                 `;
                 claimsList.innerHTML += claimHtml;
@@ -220,6 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .data(links)
                 .join('line')
                 .attr('stroke-width', d => Math.sqrt(d.value || 1) * 2.5);
+
+
 
             const node = svg.append('g')
                 .selectAll('g')
@@ -346,6 +360,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         fileReader.readAsArrayBuffer(file);
+    }
+
+    async function renderPDFFromUrl(url) {
+        try {
+            pdfViewerContainer.innerHTML = '';
+            currentPdfDoc = await pdfjsLib.getDocument(url).promise;
+            console.log('PDF loaded from URL, pages:', currentPdfDoc.numPages);
+            await renderPDFPages();
+        } catch (error) {
+            console.error("Error rendering PDF from URL:", error);
+            pdfViewerContainer.innerHTML = `<div style="color:red">Failed to render PDF preview.</div>`;
+        }
     }
 
     // 6. Flashcard Navigation & 3D Flip Logic
@@ -501,4 +527,236 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
             }
         });
     });
+
+    // 9. Settings Modal & Theme Toggle
+    const settingsBtn = document.querySelector('.settings-btn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const themeToggle = document.getElementById('themeToggle');
+
+    if (settingsBtn && settingsModal) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+    }
+
+    if (closeSettingsBtn && settingsModal) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+    }
+
+    // Close modal if clicked outside of modal content
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+        });
+    }
+
+    // 10. Supabase Authentication
+    let supabaseClient = null;
+    let currentUser = null;
+
+    const loginBtnNav = document.querySelector('.login-btn');
+    const loginModal = document.getElementById('loginModal');
+    const closeLoginBtn = document.getElementById('closeLoginBtn');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const emailSignInBtn = document.getElementById('emailSignInBtn');
+    const emailSignUpBtn = document.getElementById('emailSignUpBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
+    
+    const loginFormContainer = document.getElementById('loginFormContainer');
+    const profileCompletionContainer = document.getElementById('profileCompletionContainer');
+    const nameInput = document.getElementById('nameInput');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+    const loginTitle = document.getElementById('loginTitle');
+
+    fetch('/api/auth/config')
+        .then(res => res.json())
+        .then(data => {
+            if (data.supabaseUrl && data.supabaseAnonKey && typeof supabase !== 'undefined') {
+                supabaseClient = supabase.createClient(data.supabaseUrl, data.supabaseAnonKey);
+                checkSession();
+            }
+        });
+
+    async function checkSession() {
+        if (!supabaseClient) return;
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (session) handleUserSignedIn(session.user);
+
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                handleUserSignedIn(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                loginBtnNav.innerHTML = '<i data-lucide="user"></i>';
+                lucide.createIcons();
+            }
+        });
+    }
+
+    async function handleUserSignedIn(user) {
+        currentUser = user;
+        const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (profile && profile.full_name) {
+            loginModal.style.display = 'none';
+            loginBtnNav.innerHTML = `<span style="font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 500; letter-spacing: 8px; text-transform: uppercase; margin-left: 6px; margin-right: 6px; color: var(--text-primary);">${profile.full_name.split(' ')[0]}</span>`;
+            fetchHistory(); // Load history when logged in
+        } else {
+            loginFormContainer.style.display = 'none';
+            profileCompletionContainer.style.display = 'flex';
+            loginTitle.textContent = "Complete Registration";
+            loginModal.style.display = 'flex';
+        }
+    }
+
+    async function fetchHistory() {
+        if (!currentUser || !supabaseClient) return;
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if(!session) return;
+
+        try {
+            const response = await fetch('/api/history', {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                renderHistory(data.history);
+            }
+        } catch (error) {
+            console.error("Error fetching history:", error);
+        }
+    }
+
+    function renderHistory(historyItems) {
+        const historyList = document.getElementById('historyList');
+        if (!historyList) return;
+
+        if (!historyItems || historyItems.length === 0) {
+            historyList.innerHTML = `<div class="empty-state" style="color: var(--text-secondary); text-align: center; padding: 2rem;">No documents analyzed yet.</div>`;
+            return;
+        }
+
+        historyList.innerHTML = '';
+        historyItems.forEach(item => {
+            const date = new Date(item.created_at).toLocaleDateString();
+            
+            const card = document.createElement('div');
+            card.className = 'glass-box history-card';
+            card.style.cursor = 'pointer';
+            card.style.transition = 'transform 0.2s';
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 600; color: var(--text-primary);"><i data-lucide="file-text" style="width:16px; margin-right:8px; vertical-align:middle;"></i>${item.filename}</div>
+                    <div style="font-size: 0.85em; color: var(--text-secondary);">${date}</div>
+                </div>
+            `;
+            
+            card.onmouseenter = () => card.style.transform = 'translateY(-2px)';
+            card.onmouseleave = () => card.style.transform = 'translateY(0)';
+            
+            card.onclick = () => {
+                uploadState.style.display = 'none';
+                workspaceState.classList.remove('hidden');
+                pdfTitle.textContent = item.filename;
+                updateDashboard(item.analysis_json);
+                renderPDFFromUrl(item.cloudinary_url);
+                
+                // Switch to overview tab
+                document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                document.querySelector('[data-tab="overview"]').classList.add('active');
+                document.getElementById('overview').classList.add('active');
+            };
+            
+            historyList.appendChild(card);
+        });
+        lucide.createIcons();
+    }
+
+    if (loginBtnNav && loginModal) {
+        loginBtnNav.addEventListener('click', () => {
+            if (currentUser) {
+                if(confirm('Do you want to sign out?')) supabaseClient.auth.signOut();
+            } else {
+                loginModal.style.display = 'flex';
+            }
+        });
+    }
+
+    if (closeLoginBtn) {
+        closeLoginBtn.addEventListener('click', () => {
+            loginModal.style.display = 'none';
+        });
+    }
+
+    if (googleSignInBtn) {
+        googleSignInBtn.addEventListener('click', async () => {
+            if(!supabaseClient) return;
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+            if(error) alert('Error: ' + error.message);
+        });
+    }
+
+    if (emailSignUpBtn) {
+        emailSignUpBtn.addEventListener('click', async () => {
+            if(!supabaseClient) return;
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if(!email || !password) return alert('Please enter email and password');
+            
+            const { data, error } = await supabaseClient.auth.signUp({ email: email, password: password });
+            if(error) alert('Error: ' + error.message);
+            else alert('Check your email for the confirmation link!');
+        });
+    }
+
+    if (emailSignInBtn) {
+        emailSignInBtn.addEventListener('click', async () => {
+            if(!supabaseClient) return;
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if(!email || !password) return alert('Please enter email and password');
+            
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+            if(error) alert('Error: ' + error.message);
+        });
+    }
+
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener('click', async () => {
+            if(!supabaseClient || !currentUser) return;
+            const fullName = nameInput.value;
+            if(!fullName) return alert('Please enter your name');
+
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .insert([{ id: currentUser.id, email: currentUser.email, full_name: fullName }]);
+            
+            if(error) alert('Error saving profile: ' + error.message);
+            else {
+                alert('Profile saved!');
+                handleUserSignedIn(currentUser);
+            }
+        });
+    }
 });

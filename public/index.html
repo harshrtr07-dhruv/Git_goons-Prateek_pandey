@@ -3,66 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research Paper Briefing Agent</title>
+    <title>ArXiv Accelerator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=3">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="glass-header">
-            <div class="logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-                <h1>ArXiv Accelerator</h1>
-            </div>
-            <div class="upload-zone" id="uploadZone">
-                <input type="file" id="pdfUpload" accept="application/pdf" hidden>
-                <label for="pdfUpload" class="upload-btn">Upload PDF</label>
-            </div>
-        </header>
-
-        <!-- Main Workspace -->
-        <main class="workspace">
-            <!-- Left Pane: PDF Viewer -->
-            <section class="pane left-pane" id="pdfPane">
-                <div class="placeholder-state">
-                    <div class="icon-pulse"></div>
-                    <p>Upload a research paper to begin analysis.</p>
+    <div class="portal-wrapper">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <div class="nav-left">
+                <div class="brand-logo">
+                    <i data-lucide="rocket" class="gradient-icon"></i>
                 </div>
-                <!-- PDF.js viewer will go here -->
-                <div id="pdfViewerContainer" class="hidden"></div>
+                <span class="brand-text">ArXiv Accelerator</span>
+            </div>
+            <div class="nav-right">
+                <div class="user-profile">
+                    <i data-lucide="user" class="user-icon"></i>
+                </div>
+                <button class="settings-btn" title="Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Upload State (Visible initially) -->
+        <section class="upload-section active" id="uploadState">
+            <div class="upload-card">
+                <div class="upload-icon-wrapper">
+                    <i data-lucide="upload-cloud"></i>
+                </div>
+                <h2>Upload Research Paper</h2>
+                <p>Drag and drop your PDF here, or click to browse.</p>
+                <input type="file" id="pdfUpload" accept="application/pdf" hidden>
+                <label for="pdfUpload" class="upload-btn">Browse Files</label>
+            </div>
+        </section>
+
+        <!-- Main Content Area (Hidden initially) -->
+        <main class="split-screen hidden" id="workspaceState">
+            
+            <!-- Left Panel: The Source -->
+            <section class="left-panel">
+                <div class="glass-card source-container">
+                    <div class="panel-header">
+                        <span class="file-name" id="pdfTitle">Document Viewer</span>
+                        <div class="toolbar">
+                            <button class="tool-btn"><i data-lucide="zoom-in"></i></button>
+                            <button class="tool-btn"><i data-lucide="zoom-out"></i></button>
+                            <button class="tool-btn" id="closePdfBtn" title="Close Document"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="pdf-mock-viewer" id="pdfViewerContainer">
+                        <!-- PDF.js will render the pages here dynamically -->
+                    </div>
+                </div>
             </section>
 
-            <!-- Right Pane: Briefing Dashboard -->
-            <section class="pane right-pane glass-panel">
-                <div class="tabs">
-                    <button class="tab active" data-tab="overview">Overview</button>
-                    <button class="tab" data-tab="study">Study Mode</button>
-                    <button class="tab" data-tab="claims">Claims & Evidence</button>
-                    <button class="tab" data-tab="limitations">Limitations</button>
-                    <button class="tab" data-tab="concept-map">Concept Map</button>
-                </div>
+            <!-- Right Panel: The Dashboard -->
+            <section class="right-panel">
+                <div class="glass-card dashboard-container">
+                    <!-- Tabbed Navigation -->
+                    <div class="tab-nav">
+                        <button class="tab-btn active" data-tab="overview">
+                            <i data-lucide="layout-dashboard"></i> Overview
+                        </button>
+                        <button class="tab-btn" data-tab="study">
+                            <i data-lucide="brain"></i> Study
+                        </button>
+                        <button class="tab-btn" data-tab="claims">
+                            <i data-lucide="crosshair"></i> Claims & Evidence
+                        </button>
+                        <button class="tab-btn" data-tab="implementations">
+                            <i data-lucide="code"></i> Implementations
+                        </button>
+                        <button class="tab-btn" data-tab="limitations">
+                            <i data-lucide="alert-triangle"></i> Limitations
+                        </button>
+                        <button class="tab-btn" data-tab="concept-map">
+                            <i data-lucide="network"></i> Concept Map
+                        </button>
+                    </div>
 
-                <div class="tab-content active" id="overview">
-                    <div class="empty-state">No paper loaded yet.</div>
-                </div>
-                
-                <div class="tab-content" id="study">
-                    <div class="empty-state">No flashcards generated yet.</div>
-                </div>
+                    <div class="tab-content-wrapper">
+                        <!-- Window 1: Overview -->
+                        <div class="tab-pane active" id="overview">
+                            <div class="pane-header">
+                                <h3>Algorithmic Document Analysis</h3>
+                                <span class="subtext">100% Deterministic • Zero Pre-trained Models</span>
+                            </div>
+                            
+                            <div class="content-section">
+                                <h4 class="section-title"><i data-lucide="file-text"></i> Extractive Summary (TF-IDF)</h4>
+                                <div class="summary-box glass-box">
+                                    <ul class="bullet-list" id="tldrList">
+                                        <li>We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.</li>
+                                        <li>Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.</li>
+                                        <li>Self-attention, sometimes called intra-attention, is an attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence.</li>
+                                    </ul>
+                                </div>
+                            </div>
 
-                <div class="tab-content" id="claims">
-                    <div class="empty-state">No claims extracted yet.</div>
-                </div>
+                            <div class="content-section">
+                                <h4 class="section-title"><i data-lucide="users"></i> Author Network</h4>
+                                <div class="author-grid">
+                                    <div class="author-header">Author Name</div>
+                                    <div class="author-header">Affiliation</div>
+                                    <div class="author-header">H-Index</div>
+                                    <div class="author-header">Links</div>
+                                    
+                                    <div class="author-cell">Ashish Vaswani</div>
+                                    <div class="author-cell">Google Brain</div>
+                                    <div class="author-cell">68</div>
+                                    <div class="author-cell icons-cell">
+                                        <i data-lucide="mail"></i> <i data-lucide="external-link"></i>
+                                    </div>
 
-                <div class="tab-content" id="limitations">
-                    <div class="empty-state">No limitations extracted yet.</div>
-                </div>
+                                    <div class="author-cell">Noam Shazeer</div>
+                                    <div class="author-cell">Google Brain</div>
+                                    <div class="author-cell">72</div>
+                                    <div class="author-cell icons-cell">
+                                        <i data-lucide="mail"></i> <i data-lucide="external-link"></i>
+                                    </div>
+                                    
+                                    <div class="author-cell">Niki Parmar</div>
+                                    <div class="author-cell">Google Research</div>
+                                    <div class="author-cell">55</div>
+                                    <div class="author-cell icons-cell">
+                                        <i data-lucide="mail"></i> <i data-lucide="external-link"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="tab-content" id="concept-map">
-                    <div class="empty-state">Upload a paper to generate the concept map.</div>
+                        <!-- Window 2: Study Section -->
+                        <div class="tab-pane" id="study">
+                            <div class="content-section">
+                                <h4 class="section-title">RAKE Algorithm Flashcards</h4>
+                                <div class="flashcard-container">
+                                    <button class="fc-control" id="prevCardBtn"><i data-lucide="chevron-left"></i></button>
+                                    
+                                    <div class="flashcard-3d" id="flashcard">
+                                        <div class="flashcard-inner">
+                                            <div class="flashcard-front">
+                                                <p id="flashcardFront">The authors propose [ _________ ] to replace recurrent neural networks.</p>
+                                            </div>
+                                            <div class="flashcard-back">
+                                                <p id="flashcardBack">Attention Mechanisms</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="fc-control" id="nextCardBtn"><i data-lucide="chevron-right"></i></button>
+                                </div>
+                                <div class="fc-actions">
+                                    <button class="gradient-btn" id="flipBtn"><i data-lucide="rotate-cw"></i> Flip Card</button>
+                                </div>
+                            </div>
+
+                            <div class="content-section">
+                                <h4 class="section-title"><i data-lucide="book-open"></i> Jargon Buster</h4>
+                                <div class="jargon-list">
+                                    <div class="jargon-item">
+                                        <div class="term">Stochastic Gradient</div>
+                                        <div class="definition">An iterative method for optimizing an objective function with suitable smoothness properties (e.g. differentiable).</div>
+                                    </div>
+                                    <div class="jargon-item">
+                                        <div class="term">Transduction Models</div>
+                                        <div class="definition">Models that convert sequences from one domain (e.g., source language) into sequences in another domain (e.g., target language).</div>
+                                    </div>
+                                    <div class="jargon-item">
+                                        <div class="term">Self-Attention</div>
+                                        <div class="definition">An attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Window 3: Claims & Evidence -->
+                        <div class="tab-pane" id="claims">
+                            <div class="pane-header">
+                                <h3>BM25 Document Grounding</h3>
+                            </div>
+                            
+                            <div class="claims-list" id="claimsList">
+                                <div class="claim-card glass-box">
+                                    <div class="claim-header">
+                                        <span class="metric-tag">Relevance Score: 0.94</span>
+                                    </div>
+                                    <p class="claim-text">The Transformer architecture replaces recurrent neural networks with a self-attention mechanism to compute sequence representations.</p>
+                                    <button class="gradient-btn locate-btn" id="locateTargetBtn">
+                                        <i data-lucide="target"></i> Locate in PDF
+                                    </button>
+                                </div>
+                                
+                                <div class="claim-card glass-box">
+                                    <div class="claim-header">
+                                        <span class="metric-tag">Relevance Score: 0.88</span>
+                                    </div>
+                                    <p class="claim-text">Experiments show the proposed models are superior in translation quality while being more parallelizable.</p>
+                                    <button class="gradient-btn outline">
+                                        <i data-lucide="target"></i> Locate in PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Window 4: Implementations -->
+                        <div class="tab-pane" id="implementations">
+                            <div class="pane-header">
+                                <h3>Theory-to-Code Linker</h3>
+                            </div>
+                            
+                            <div class="content-section">
+                                <p class="secondary-text mb-4">Core data structures and paradigms detected in the paper:</p>
+                                
+                                <div class="code-window glass-box">
+                                    <div class="code-tabs">
+                                        <button class="code-tab active" data-lang="python">Python</button>
+                                        <button class="code-tab" data-lang="cpp">C++</button>
+                                        <button class="code-tab" data-lang="java">Java</button>
+                                    </div>
+                                    <div class="code-content">
+                                        <pre><code id="codeSnippet" class="language-python">
+# Self-Attention Mechanism (Simplified)
+def self_attention(query, key, value):
+    d_k = query.size(-1)
+    # Compute attention scores
+    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    # Apply softmax
+    p_attn = F.softmax(scores, dim=-1)
+    # Multiply by values
+    return torch.matmul(p_attn, value)
+                                        </code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="content-section mt-6">
+                                <h4 class="section-title">Framework Integrations</h4>
+                                <div class="framework-badges">
+                                    <div class="badge"><img src="https://upload.wikimedia.org/wikipedia/commons/2/2d/Tensorflow_logo.svg" alt="TF" class="fw-icon"> TensorFlow</div>
+                                    <div class="badge"><img src="https://upload.wikimedia.org/wikipedia/commons/1/10/PyTorch_logo_icon.svg" alt="PyTorch" class="fw-icon"> PyTorch</div>
+                                    <div class="badge"><img src="https://upload.wikimedia.org/wikipedia/commons/3/32/OpenCV_Logo_with_text_svg_version.svg" alt="OpenCV" class="fw-icon" style="filter: brightness(0) invert(1);"> OpenCV</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Window 5: Limitations -->
+                        <div class="tab-pane" id="limitations">
+                            <div class="pane-header">
+                                <h3>Limitations & Constraints</h3>
+                            </div>
+                            <div class="content-section">
+                                <div class="limitations-list" id="limitationsList">
+                                    <div class="empty-state" style="color: var(--text-secondary); text-align: center; padding: 2rem;">No limitations extracted yet.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Window 6: Concept Map -->
+                        <div class="tab-pane" id="concept-map">
+                            <div class="pane-header">
+                                <h3>Knowledge Graph</h3>
+                            </div>
+                            <div class="content-section" style="height: 400px; position: relative;">
+                                <div id="conceptMapContainer" class="glass-box" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                                    <div class="empty-state" style="color: var(--text-secondary);">Upload a paper to generate the concept map.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </section>
         </main>
@@ -75,6 +292,10 @@
     </script>
     <!-- D3.js for Concept Map -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- Scripts -->
     <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>

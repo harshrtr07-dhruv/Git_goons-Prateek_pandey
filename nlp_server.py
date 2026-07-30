@@ -77,6 +77,30 @@ def clean_sentences(sentences):
         # Skip very short sentences (likely garbage or page numbers)
         if len(s.split()) < 6:
             continue
+            
+        # --- NEW TABULAR / MATH FILTERING ---
+        alpha_count = sum(c.isalpha() for c in s)
+        num_count = sum(c.isdigit() for c in s)
+        
+        # Must have a minimum number of letters to be a real sentence
+        if alpha_count < 15:
+            continue
+            
+        # If the ratio of numbers to letters is unusually high, it's a table or math array
+        if alpha_count == 0 or (num_count / alpha_count) > 0.25:
+            continue
+            
+        # If there are too many math symbols relative to words
+        sym_count = sum(s.count(c) for c in '+-=/·<>±%*^')
+        if (sym_count / alpha_count) > 0.1:
+            continue
+            
+        # Require at least one common stopword to prove it's prose and not a list of nouns/numbers
+        lower_s = " " + s.lower() + " "
+        stopwords = [' the ', ' a ', ' an ', ' is ', ' are ', ' in ', ' of ', ' to ', ' for ', ' with ', ' on ', ' by ', ' this ', ' that ', ' we ', ' as ']
+        if not any(sw in lower_s for sw in stopwords):
+            continue
+
         cleaned.append(s)
     return cleaned
 

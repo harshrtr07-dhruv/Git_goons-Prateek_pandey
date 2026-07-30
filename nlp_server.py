@@ -339,11 +339,6 @@ def analyze():
     })
 
 if __name__ == '__main__':
-    try:
-        from waitress import serve
-        print("Starting ML-Powered Python Microservice (Production WSGI) on Port 5000...")
-        serve(app, host='127.0.0.1', port=5000)
-    except ImportError:
-        print("WARNING: 'waitress' not installed. Falling back to Flask dev server.")
-        print("For production, run: pip install waitress")
-        app.run(port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"Starting ML-Powered Python Microservice on Port {port}...")
+    app.run(host='0.0.0.0', port=port)

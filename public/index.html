@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Paper Briefing Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                <h1>ArXiv Accelerator</h1>
+            </div>
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="pdfUpload" accept="application/pdf" hidden>
+                <label for="pdfUpload" class="upload-btn">Upload PDF</label>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Left Pane: PDF Viewer -->
+            <section class="pane left-pane" id="pdfPane">
+                <div class="placeholder-state">
+                    <div class="icon-pulse"></div>
+                    <p>Upload a research paper to begin analysis.</p>
+                </div>
+                <!-- PDF.js viewer will go here -->
+                <div id="pdfViewerContainer" class="hidden"></div>
+            </section>
+
+            <!-- Right Pane: Briefing Dashboard -->
+            <section class="pane right-pane glass-panel">
+                <div class="tabs">
+                    <button class="tab active" data-tab="overview">Overview</button>
+                    <button class="tab" data-tab="study">Study Mode</button>
+                    <button class="tab" data-tab="claims">Claims & Evidence</button>
+                </div>
+
+                <div class="tab-content active" id="overview">
+                    <div class="empty-state">No paper loaded yet.</div>
+                </div>
+                
+                <div class="tab-content" id="study">
+                    <div class="empty-state">No flashcards generated yet.</div>
+                </div>
+
+                <div class="tab-content" id="claims">
+                    <div class="empty-state">No claims extracted yet.</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- PDF.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

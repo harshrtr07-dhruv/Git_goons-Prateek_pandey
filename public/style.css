@@ -287,19 +287,23 @@ body {
     padding: 1.5rem;
     border-radius: 1rem;
     border: 1px solid var(--border);
+    overflow-y: auto; /* Allow scrolling for long text */
+    word-break: break-word; /* Prevent long unbroken strings from spilling out */
+    overflow-wrap: break-word;
 }
 .flashcard-front {
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
     color: var(--accent);
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 500;
+    font-size: 0.95rem; /* Reduced from 1.1rem to fit more text */
+    line-height: 1.5;
 }
 .flashcard-back {
     background: var(--accent);
     color: white;
     transform: rotateY(180deg);
     font-size: 0.95rem;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
 /* PDF Viewer */

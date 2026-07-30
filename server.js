@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+// We now use PyMuPDF in the Python server instead of pdf-parse here
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,19 +19,17 @@ app.post('/api/upload', upload.single('pdf'), async (req, res) => {
             return res.status(400).json({ error: 'No PDF file uploaded.' });
         }
 
-        console.log(`Extracting text from: ${req.file.originalname}`);
-        const data = await pdfParse(req.file.buffer);
-        console.log(`Extracted ${data.text.length} characters.`);
+        console.log(`Received PDF: ${req.file.originalname}`);
         
-        // Pass the extracted text to Python NLP Microservice
-        console.log('Sending to Python NLP server for analysis...');
+        // Pass the raw PDF buffer directly to the Python NLP Microservice for superior PyMuPDF parsing
+        console.log('Sending raw PDF to Python NLP server for analysis...');
         
         const nlpResponse = await fetch('http://127.0.0.1:5000/analyze', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/pdf'
             },
-            body: JSON.stringify({ text: data.text })
+            body: req.file.buffer
         });
         
         if (!nlpResponse.ok) {
@@ -43,7 +41,7 @@ app.post('/api/upload', upload.single('pdf'), async (req, res) => {
         console.log('Analysis complete!');
         res.json({
             message: 'Successfully processed PDF',
-            extractedLength: data.text.length,
+            extractedLength: analysis.extractedLength || 0,
             analysis: analysis
         });
 

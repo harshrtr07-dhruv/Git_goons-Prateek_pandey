@@ -7,6 +7,7 @@ from nltk.tokenize import sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import networkx as nx
+import fitz  # PyMuPDF for advanced parsing
 
 app = Flask(__name__)
 
@@ -16,11 +17,14 @@ try:
         claims_model = pickle.load(f)
     with open('models_defs.pkl', 'rb') as f:
         defs_model = pickle.load(f)
+    with open('models_limitations.pkl', 'rb') as f:
+        lims_model = pickle.load(f)
     print("Models loaded successfully!")
 except Exception as e:
     print("WARNING: Could not load .pkl models. Run train_model.py first.")
     claims_model = None
     defs_model = None
+    lims_model = None
 
 def generate_tldr(sentences, num_sentences=3):
     if len(sentences) <= num_sentences:
@@ -41,6 +45,10 @@ def generate_tldr(sentences, num_sentences=3):
             lower_s = sentence.lower()
             if any(kw in lower_s for kw in tldr_boost_words):
                 scores[i] *= 1.5
+            
+            # Filter out citations and references from being selected as the TLDR
+            if re.search(r'\[\d+\]', sentence) or "arxiv:" in lower_s or "et al." in lower_s:
+                scores[i] *= 0.01
                 
         ranked_sentences = sorted(((scores[i], s) for i,s in enumerate(sentences)), reverse=True)
         tldr = [s for score, s in ranked_sentences[:num_sentences]]
@@ -49,23 +57,136 @@ def generate_tldr(sentences, num_sentences=3):
         print("PageRank error:", e)
         return sentences[:num_sentences]
 
+def clean_sentences(sentences):
+    """Filter out noisy sentences extracted from academic PDF formatting."""
+    cleaned = []
+    for s in sentences:
+        s = s.strip()
+        # Skip section headers like "A. Introduction", "IV. Results", "C. Pre-Training..."
+        if re.match(r'^[A-Z]{1,3}[\.\)]\s+[A-Z]', s):
+            continue
+        # Skip standalone single/double uppercase letters (e.g. "V", "P", "C")
+        if re.match(r'^[A-Z]{1,3}\.?$', s.strip()):
+            continue
+        # Skip table/figure references like "Table V." or "Fig. 3."
+        if re.match(r'^(Table|Fig|Figure|Eq|Algorithm)\s+[IVXLCDM\d]+', s, re.IGNORECASE):
+            continue
+        # Skip citation strings like "[1] Smith et al..." or "9, 15 [97] S. Wu..."
+        if re.search(r'^\[?\d+\]?\s+[A-Z]\.', s):
+            continue
+        # Skip very short sentences (likely garbage or page numbers)
+        if len(s.split()) < 6:
+            continue
+        cleaned.append(s)
+    return cleaned
+
 def extract_claims(sentences):
     claims = []
-    
     for sentence in sentences:
         if claims_model and claims_model.predict([sentence])[0] == 1:
             claim_text = sentence.strip()
-            if len(claim_text) > 100:
-                claim_text = claim_text[:97] + "..."
-                
+            if len(claim_text) > 150:
+                claim_text = claim_text[:147] + "..."
             claims.append({
-                "claim": f"ML Extracted Finding: {claim_text}",
+                "claim": claim_text,
                 "evidence_quote": sentence.strip()
             })
-            
             if len(claims) >= 5:
                 break
     return claims
+
+def extract_limitations(sentences):
+    limitations = []
+    for sentence in sentences:
+        if lims_model and lims_model.predict([sentence])[0] == 1:
+            limitations.append(sentence.strip())
+            if len(limitations) >= 4:
+                break
+    return limitations
+
+def build_concept_map(sentences, top_n=6):
+    """Extract top keywords and their co-occurrence links for concept map visualization."""
+    if not sentences:
+        return {"nodes": [], "links": []}
+
+    # Generic academic/paper meta-words that carry no conceptual value
+    BLOCKLIST = {
+        'et al', 'arxiv', 'preprint', 'large', 'fine', 'lims', 'llm', 'llms',
+        'model', 'models', 'data', 'dataset', 'language', 'learning', 'performance',
+        'paper', 'work', 'method', 'approach', 'result', 'results', 'show', 'propose',
+        'recent', 'previous', 'existing', 'new', 'different', 'various', 'several',
+        'general', 'specific', 'based', 'used', 'using', 'use', 'pre', 'post',
+        'number', 'type', 'task', 'tasks', 'ability', 'training', 'tuning'
+    }
+
+    # Extract a large candidate pool and filter
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=80)
+    try:
+        vectorizer.fit(sentences)
+        all_terms = vectorizer.get_feature_names_out().tolist()
+    except Exception:
+        return {"nodes": [], "links": []}
+
+    def is_valid_term(t):
+        if re.match(r'^\d+', t): return False           # starts with number
+        if len(t) <= 3: return False                     # too short
+        if t in BLOCKLIST: return False                  # generic meta-word
+        if any(b in t.split() for b in BLOCKLIST): return False  # bigram containing blocker
+        if re.match(r'^[a-z]\s', t): return False        # single-letter bigram
+        return True
+
+    top_terms = [t for t in all_terms if is_valid_term(t)][:top_n]
+
+    def score_description(sentence, term):
+        """Score how well a sentence describes a term. Higher is better."""
+        s = sentence.lower()
+        score = 0
+        # Bonus for definition language
+        def_words = [' is ', ' are ', ' refers to ', ' defined as ', ' means ', ' consists of ',
+                     ' using ', ' called ', ' known as ', ' such as ', ' including ']
+        for dw in def_words:
+            if dw in s:
+                score += 10
+        # Bonus for term appearing early in the sentence (likely the subject)
+        idx = s.find(term)
+        if idx != -1:
+            score += max(0, 20 - idx)  # Earlier = more score
+        # Prefer medium-length sentences (not too short or too long)
+        word_count = len(sentence.split())
+        if 10 <= word_count <= 40:
+            score += 5
+        elif word_count > 40:
+            score -= 3
+        return score
+
+    # Build nodes: pick the most descriptive sentence for each concept
+    nodes = []
+    for term in top_terms:
+        candidates = [(s, score_description(s, term)) for s in sentences if term in s.lower()]
+        if candidates:
+            best_sentence = max(candidates, key=lambda x: x[1])[0]
+        else:
+            best_sentence = f"A key concept discussed in this paper: '{term.title()}'."
+        nodes.append({
+            "id": term,
+            "label": term.title(),
+            "description": best_sentence.strip()
+        })
+
+    # Build edges: two terms are linked if they co-occur in the same sentence
+    links = []
+    seen = set()
+    for sentence in sentences:
+        s_lower = sentence.lower()
+        present = [t for t in top_terms if t in s_lower]
+        for i in range(len(present)):
+            for j in range(i + 1, len(present)):
+                key = tuple(sorted([present[i], present[j]]))
+                if key not in seen:
+                    seen.add(key)
+                    links.append({"source": present[i], "target": present[j]})
+
+    return {"nodes": nodes, "links": links}
 
 def generate_flashcards(sentences):
     flashcards = []
@@ -79,13 +200,25 @@ def generate_flashcards(sentences):
             term = "Concept"
             definition = sentence
             
+            # Use case-insensitive search for the split word
+            lower_sentence = sentence.lower()
             for word in split_words:
-                if word in sentence:
-                    parts = sentence.split(word, 1)
-                    term = parts[0].strip()
-                    definition = parts[1].strip()
+                if word in lower_sentence:
+                    # Find the actual index to preserve original casing
+                    idx = lower_sentence.index(word)
+                    term = sentence[:idx].strip()
+                    definition = sentence[idx + len(word):].strip()
                     break
                     
+            if term == "Concept" or len(term) > 50:
+                # Fallback if split fails or term is weirdly long
+                words = sentence.split()
+                term = " ".join(words[:4]) + "..."
+                definition = " ".join(words[4:])
+                
+            # Clean up the term if it has weird starting characters
+            term = re.sub(r'^[^a-zA-Z0-9]+', '', term)
+            
             flashcards.append({
                 "question": f"What is {term}?",
                 "answer": f"It is {definition.strip('. ')}."
@@ -111,13 +244,30 @@ def generate_flashcards(sentences):
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    data = request.json
-    text = data.get('text', '')
+    text = ""
     
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
+    # Advanced Parsing: Handle raw PDF streams directly with PyMuPDF
+    if request.content_type == 'application/pdf':
+        try:
+            pdf_bytes = request.get_data()
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            for page in doc:
+                text += page.get_text() + " "
+            doc.close()
+        except Exception as e:
+            return jsonify({"error": f"Failed to parse PDF: {str(e)}"}), 400
+    else:
+        # Fallback for plain text API usage
+        data = request.json
+        text = data.get('text', '') if data else ''
+    
+    if not text.strip():
+        return jsonify({"error": "No text could be extracted or provided"}), 400
         
     text = text.replace('\n', ' ')
+    
+    # Replace common bullet point characters with periods so they are tokenized as separate sentences
+    text = re.sub(r'[\•\▪\⁃\u2022]', '. ', text)
     
     try:
         sentences = sent_tokenize(text)
@@ -125,29 +275,39 @@ def analyze():
         sentences = text.split('. ')
     
     sentences = [s.strip() for s in sentences if len(s.split()) > 5]
+    sentences = clean_sentences(sentences)
     
     tldr = generate_tldr(sentences, 3)
     claims = extract_claims(sentences)
+    limitations = extract_limitations(sentences)
     flashcards = generate_flashcards(sentences)
+    concept_map = build_concept_map(sentences)
     
     if not claims:
-         claims.append({
-             "claim": "No explicit claims found by the ML model.",
-             "evidence_quote": sentences[0] if sentences else "N/A"
-         })
+        claims.append({
+            "claim": "No explicit claims found by the ML model.",
+            "evidence_quote": sentences[0] if sentences else "N/A"
+        })
+    
+    if not limitations:
+        limitations.append("No explicit limitations or constraints were detected in this paper.")
          
     if not flashcards:
-         flashcards.append({
-             "question": "What is the primary topic?",
-             "answer": "The text discusses complex concepts that couldn't be auto-extracted."
-         })
+        flashcards.append({
+            "question": "What is the primary topic?",
+            "answer": "The text discusses complex concepts that couldn't be auto-extracted."
+        })
     
     return jsonify({
         "tldr": tldr,
         "claims": claims,
-        "flashcards": flashcards
+        "limitations": limitations,
+        "flashcards": flashcards,
+        "concept_map": concept_map,
+        "extractedLength": len(text)
     })
 
 if __name__ == '__main__':
-    print("Starting ML-Powered Python Microservice on Port 5000...")
-    app.run(port=5000, debug=True)
+    print("Starting ML-Powered Python Microservice (Production WSGI) on Port 5000...")
+    from waitress import serve
+    serve(app, host='127.0.0.1', port=5000)

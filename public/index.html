@@ -41,6 +41,8 @@
                     <button class="tab active" data-tab="overview">Overview</button>
                     <button class="tab" data-tab="study">Study Mode</button>
                     <button class="tab" data-tab="claims">Claims & Evidence</button>
+                    <button class="tab" data-tab="limitations">Limitations</button>
+                    <button class="tab" data-tab="concept-map">Concept Map</button>
                 </div>
 
                 <div class="tab-content active" id="overview">
@@ -54,6 +56,14 @@
                 <div class="tab-content" id="claims">
                     <div class="empty-state">No claims extracted yet.</div>
                 </div>
+
+                <div class="tab-content" id="limitations">
+                    <div class="empty-state">No limitations extracted yet.</div>
+                </div>
+
+                <div class="tab-content" id="concept-map">
+                    <div class="empty-state">Upload a paper to generate the concept map.</div>
+                </div>
             </section>
         </main>
     </div>
@@ -63,6 +73,8 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
+    <!-- D3.js for Concept Map -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

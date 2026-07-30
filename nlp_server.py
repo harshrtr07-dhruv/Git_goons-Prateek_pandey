@@ -191,16 +191,16 @@ def build_concept_map(sentences, top_n=6):
 def generate_flashcards(sentences):
     flashcards = []
     
+    split_words = [' is a ', ' are a ', ' refers to ', ' is defined as ', ' means ', ' consists of ', ' is known as ']
+    
     for sentence in sentences:
-        if defs_model and defs_model.predict([sentence])[0] == 1:
-            # We know it's a definition according to the ML model.
-            # We use a quick split to make a Question/Answer pair
-            split_words = [" is defined as ", " refers to ", " is known as ", " stands for ", " is a ", " means "]
+        if len(flashcards) >= 6:
+            break
             
+        if defs_model and defs_model.predict([sentence])[0] == 1:
             term = "Concept"
             definition = sentence
             
-            # Use case-insensitive search for the split word
             lower_sentence = sentence.lower()
             for word in split_words:
                 if word in lower_sentence:
@@ -210,35 +210,37 @@ def generate_flashcards(sentences):
                     definition = sentence[idx + len(word):].strip()
                     break
                     
+            # Only include the concepts we successfully split
             if term == "Concept" or len(term) > 50:
-                # Fallback if split fails or term is weirdly long
-                words = sentence.split()
-                term = " ".join(words[:4]) + "..."
-                definition = " ".join(words[4:])
+                continue
                 
-            # Clean up the term if it has weird starting characters
+            # Clean up the term if it has weird starting characters or figure caption artifacts like "right)"
+            term = re.sub(r'^\s*\(.*?\)\s*', '', term) # Remove leading (anything)
+            term = re.sub(r'^\s*(?:left|right|top|bottom|[a-z])\)\s*', '', term, flags=re.IGNORECASE)
             term = re.sub(r'^[^a-zA-Z0-9]+', '', term)
+            term = term.strip()
             
             flashcards.append({
                 "question": f"What is {term}?",
                 "answer": f"It is {definition.strip('. ')}."
             })
-                
-        if len(flashcards) >= 6:
-            break
             
-    # Fallback if no definitions found
-    if len(flashcards) == 0 and len(sentences) > 5:
-        for i in range(min(3, len(sentences))):
-            sent = sentences[i+2] 
-            words = sent.split()
-            if len(words) > 10:
-                q_words = " ".join(words[:5])
-                a_words = " ".join(words[5:])
+    # Fallback: if we didn't find enough explicit definitions, use TF-IDF concept map extraction
+    if len(flashcards) < 4:
+        concept_data = build_concept_map(sentences, top_n=6)
+        existing_questions = set(f["question"] for f in flashcards)
+        
+        for node in concept_data.get("nodes", []):
+            if len(flashcards) >= 6:
+                break
+                
+            question = f"What is {node['label']}?"
+            if question not in existing_questions:
                 flashcards.append({
-                    "question": f"Complete the thought: {q_words}...",
-                    "answer": a_words
+                    "question": question,
+                    "answer": node['description']
                 })
+                existing_questions.add(question)
                 
     return flashcards
 
@@ -308,6 +310,11 @@ def analyze():
     })
 
 if __name__ == '__main__':
-    print("Starting ML-Powered Python Microservice (Production WSGI) on Port 5000...")
-    from waitress import serve
-    serve(app, host='127.0.0.1', port=5000)
+    try:
+        from waitress import serve
+        print("Starting ML-Powered Python Microservice (Production WSGI) on Port 5000...")
+        serve(app, host='127.0.0.1', port=5000)
+    except ImportError:
+        print("WARNING: 'waitress' not installed. Falling back to Flask dev server.")
+        print("For production, run: pip install waitress")
+        app.run(port=5000, debug=True)

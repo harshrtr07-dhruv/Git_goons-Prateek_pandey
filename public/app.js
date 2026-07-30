@@ -619,7 +619,7 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
 
         if (profile && profile.full_name) {
             loginModal.style.display = 'none';
-            loginBtnNav.innerHTML = `<span style="font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 500; letter-spacing: 8px; text-transform: uppercase; margin-left: 6px; margin-right: 6px; color: var(--text-primary);">${profile.full_name.split(' ')[0]}</span>`;
+            loginBtnNav.innerHTML = `<span style="font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 500; letter-spacing: 8px; text-transform: uppercase; margin-left: 6px; margin-right: 6px; color: var(--text-primary);">${profile.full_name.split(' ')[0]}</span>`; // WAYPAPER font applied to user name
             fetchHistory(); // Load history when logged in
         } else {
             loginFormContainer.style.display = 'none';

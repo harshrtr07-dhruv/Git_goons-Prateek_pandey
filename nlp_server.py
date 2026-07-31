@@ -176,10 +176,13 @@ def build_concept_map(sentences, top_n=6):
         'number', 'type', 'ability', 'section', 'figure', 'table'
     }
 
-    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=100)
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=150)
     try:
-        vectorizer.fit(sentences)
-        all_terms = vectorizer.get_feature_names_out().tolist()
+        tfidf_matrix = vectorizer.fit_transform(sentences)
+        feature_names = vectorizer.get_feature_names_out()
+        scores = tfidf_matrix.sum(axis=0).A1
+        term_scores = sorted(zip(feature_names, scores), key=lambda x: x[1], reverse=True)
+        all_terms = [t for t, s in term_scores]
     except Exception:
         all_terms = []
 

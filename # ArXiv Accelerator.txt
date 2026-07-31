@@ -1,0 +1,43 @@
+# ArXiv Accelerator
+
+
+## Upload Research Paper
+Drag and drop your PDF here, or click to browse.
+
+### Algorithmic Document Analysis
+
+#### Extractive Summary (TF-IDF)
+- We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.
+- Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.
+- Self-attention, sometimes called intra-attention, is an attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence.
+
+#### Author Network
+
+#### RAKE Algorithm Flashcards
+The authors propose [ _________ ] to replace recurrent neural networks.
+Attention Mechanisms
+
+#### Jargon Buster
+
+### BM25 Document Grounding
+The Transformer architecture replaces recurrent neural networks with a self-attention mechanism to compute sequence representations.
+Experiments show the proposed models are superior in translation quality while being more parallelizable.
+
+### Theory-to-Code Linker
+Core data structures and paradigms detected in the paper:
+
+```
+# Self-Attention Mechanism (Simplified) def self_attention(query, key, value): d_k = query.size(-1) # Compute attention scores scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k) # Apply softmax p_attn = F.softmax(scores, dim=-1) # Multiply by values return torch.matmul(p_attn, value)
+```
+
+
+```
+# Self-Attention Mechanism (Simplified) def self_attention(query, key, value): d_k = query.size(-1) # Compute attention scores scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k) # Apply softmax p_attn = F.softmax(scores, dim=-1) # Multiply by values return torch.matmul(p_attn, value)
+```
+
+
+#### Framework Integrations
+
+### Limitations & Constraints
+
+### Knowledge Graph

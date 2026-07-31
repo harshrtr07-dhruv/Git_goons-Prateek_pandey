@@ -684,3 +684,84 @@ body::after {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.4);
 }
+
+/* Dark Theme Overrides */
+body.dark-theme {
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc; 
+    --gradient-skin-pink: linear-gradient(135deg, #1f1c2c, #928dab);
+    --bg-panel: rgba(0, 0, 0, 0.4);
+    --border: rgba(255, 255, 255, 0.2);
+    --gradient-border: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .pdf-page {
+    filter: invert(0.9) hue-rotate(180deg);
+}
+
+body.dark-theme .brand-text,
+body.dark-theme .user-icon,
+body.dark-theme .gradient-icon,
+body.dark-theme .settings-btn,
+body.dark-theme .tab-btn.active,
+body.dark-theme .tab-btn.active::after,
+body.dark-theme .upload-card h2,
+body.dark-theme .section-title i,
+body.dark-theme .bullet-list li::before,
+body.dark-theme .term,
+body.dark-theme .upload-icon-wrapper {
+    color: #ffffff;
+    background-color: transparent;
+}
+
+body.dark-theme .upload-btn, 
+body.dark-theme .gradient-btn:not(.outline) {
+    background: #fff;
+    color: #000;
+}
+
+body.dark-theme .gradient-btn.outline {
+    border-color: #fff;
+    color: #fff;
+}
+
+body.dark-theme .flashcard-front, 
+body.dark-theme .flashcard-back {
+    background: #2a2a2a;
+    color: #fff;
+    border-color: rgba(255,255,255,0.1);
+}
+
+body.dark-theme .flashcard-back {
+    background: #333;
+}
+
+body.dark-theme .author-header, 
+body.dark-theme .author-cell {
+    background: rgba(0,0,0,0.6);
+}
+
+body.dark-theme .code-content {
+    background: #1e1e1e;
+}
+
+body.dark-theme .code-content pre {
+    color: #d4d4d4;
+}
+
+body.dark-theme .badge {
+    background: rgba(0,0,0,0.5);
+}
+
+body.dark-theme .glass-box {
+    background: rgba(0,0,0,0.3);
+}
+
+body.dark-theme .tab-btn.active {
+    color: #fff;
+}
+
+body.dark-theme .tab-btn.active::after {
+    background: #fff;
+}
+

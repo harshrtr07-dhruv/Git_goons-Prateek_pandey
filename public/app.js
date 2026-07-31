@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetPane = document.getElementById(targetId);
             if(targetPane) {
                 targetPane.classList.add('active');
+                if (targetId === 'concept-map' && window.currentAnalysis) {
+                    setTimeout(() => renderConceptMap(window.currentAnalysis), 50);
+                }
             }
         });
     });
@@ -146,6 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateDashboard(analysis) {
+        window.currentAnalysis = analysis;
+
         // 1. Update TLDR (Extractive Summary)
         const tldrList = document.getElementById('tldrList');
         if (tldrList && analysis.tldr && analysis.tldr.length > 0) {
@@ -169,9 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (claimsList && analysis.claims && analysis.claims.length > 0) {
             claimsList.innerHTML = '';
             analysis.claims.forEach((claimObj, index) => {
-                // Determine a mock relevance score based on index to look nice
                 const score = (0.95 - (index * 0.05)).toFixed(2);
-                
                 const claimHtml = `
                     <div class="claim-card glass-box">
                         <div class="claim-header">
@@ -182,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 claimsList.innerHTML += claimHtml;
             });
-            // Re-initialize any new lucide icons
             lucide.createIcons();
         }
 
@@ -202,12 +204,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 5. Update Concept Map (D3.js)
+        renderConceptMap(analysis);
+    }
+
+    function renderConceptMap(analysis) {
+        if (!analysis || !analysis.concept_map) return;
         const mapContainer = document.getElementById('conceptMapContainer');
-        if (mapContainer && analysis.concept_map && analysis.concept_map.nodes && typeof d3 !== 'undefined') {
+        if (mapContainer && analysis.concept_map.nodes && typeof d3 !== 'undefined') {
             mapContainer.innerHTML = ''; // Clear empty state
             
-            const width = mapContainer.clientWidth || 600;
-            const height = mapContainer.clientHeight || 400;
+            const width = Math.max(mapContainer.clientWidth || 0, 600);
+            const height = Math.max(mapContainer.clientHeight || 0, 400);
             
             const svg = d3.select('#conceptMapContainer')
                 .append('svg')
@@ -220,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const links = analysis.concept_map.links.map(d => ({...d}));
 
             const simulation = d3.forceSimulation(nodes)
-                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('link', d3.forceLink(links).id(d => d.id).distance(110))
                 .force('charge', d3.forceManyBody().strength(-300))
                 .force('center', d3.forceCenter(width / 2, height / 2))
                 .force('collide', d3.forceCollide().radius(40));
@@ -232,8 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 .data(links)
                 .join('line')
                 .attr('stroke-width', d => Math.sqrt(d.value || 1) * 2.5);
-
-
 
             const node = svg.append('g')
                 .selectAll('g')

@@ -132,11 +132,26 @@ def extract_claims(sentences):
 
 def extract_limitations(sentences):
     limitations = []
+    # 1. Try ML model
     for sentence in sentences:
         if lims_model and lims_model.predict([sentence])[0] == 1:
             limitations.append(sentence.strip())
             if len(limitations) >= 4:
                 break
+
+    # 2. Fallback: Keyword search if ML model yields fewer than 2 results
+    if len(limitations) < 2:
+        lim_keywords = [
+            'limit', 'limitation', 'drawback', 'constraint', 'restrict',
+            'challenge', 'bottleneck', 'fails to', 'unable to', 'future work',
+            'trade-off', 'tradeoff', 'computational cost', 'expensive', 'remains'
+        ]
+        for sentence in sentences:
+            s_lower = sentence.lower()
+            if any(kw in s_lower for kw in lim_keywords) and sentence.strip() not in limitations:
+                limitations.append(sentence.strip())
+                if len(limitations) >= 4:
+                    break
     return limitations
 
 def build_concept_map(sentences, top_n=6):
@@ -145,17 +160,16 @@ def build_concept_map(sentences, top_n=6):
         return {"nodes": [], "links": []}
 
     # Generic academic/paper meta-words that carry no conceptual value
-    BLOCKLIST = {
-        'et al', 'arxiv', 'preprint', 'large', 'fine', 'lims', 'llm', 'llms',
-        'model', 'models', 'data', 'dataset', 'language', 'learning', 'performance',
+    META_WORDS = {
+        'et al', 'arxiv', 'preprint', 'lims', 'llm', 'llms',
         'paper', 'work', 'method', 'approach', 'result', 'results', 'show', 'propose',
         'recent', 'previous', 'existing', 'new', 'different', 'various', 'several',
-        'general', 'specific', 'based', 'used', 'using', 'use', 'pre', 'post',
-        'number', 'type', 'task', 'tasks', 'ability', 'training', 'tuning'
+        'general', 'specific', 'used', 'using', 'use', 'pre', 'post',
+        'number', 'type', 'ability', 'section', 'figure', 'table'
     }
 
     # Extract a large candidate pool and filter
-    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=80)
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=100)
     try:
         vectorizer.fit(sentences)
         all_terms = vectorizer.get_feature_names_out().tolist()
@@ -165,12 +179,17 @@ def build_concept_map(sentences, top_n=6):
     def is_valid_term(t):
         if re.match(r'^\d+', t): return False           # starts with number
         if len(t) <= 3: return False                     # too short
-        if t in BLOCKLIST: return False                  # generic meta-word
-        if any(b in t.split() for b in BLOCKLIST): return False  # bigram containing blocker
+        if t in META_WORDS: return False                 # generic meta-word
+        words = t.split()
+        if all(w in META_WORDS for w in words): return False # all words are meta-words
         if re.match(r'^[a-z]\s', t): return False        # single-letter bigram
         return True
 
     top_terms = [t for t in all_terms if is_valid_term(t)][:top_n]
+
+    # Fallback if top_terms is empty
+    if not top_terms:
+        top_terms = [t for t in all_terms if len(t) > 3 and not re.match(r'^\d+', t)][:top_n]
 
     def score_description(sentence, term):
         """Score how well a sentence describes a term. Higher is better."""

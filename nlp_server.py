@@ -302,23 +302,24 @@ def generate_flashcards(sentences):
 def analyze():
     text = ""
     
-    # Advanced Parsing: Handle raw PDF streams directly with PyMuPDF
-    if request.content_type == 'application/pdf':
-        try:
-            pdf_bytes = request.get_data()
+    # 1. Try reading raw PDF bytes from request body
+    try:
+        pdf_bytes = request.get_data()
+        if pdf_bytes and len(pdf_bytes) > 50:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             for page in doc:
                 text += page.get_text() + " "
             doc.close()
-        except Exception as e:
-            return jsonify({"error": f"Failed to parse PDF: {str(e)}"}), 400
-    else:
-        # Fallback for plain text API usage
-        data = request.json
-        text = data.get('text', '') if data else ''
+    except Exception as e:
+        print("PyMuPDF stream parse notice:", e)
+
+    # 2. Fallback to JSON payload if PyMuPDF didn't extract text
+    if not text.strip():
+        data = request.get_json(silent=True) or {}
+        text = data.get('text', '')
     
     if not text.strip():
-        return jsonify({"error": "No text could be extracted or provided"}), 400
+        return jsonify({"error": "No text could be extracted from the uploaded PDF"}), 400
         
     text = text.replace('\n', ' ')
     

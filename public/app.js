@@ -134,7 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Server returned ${response.status}`);
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.details || errData.error || `Server returned ${response.status}`);
             }
 
             const data = await response.json();
@@ -144,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error analyzing PDF:", error);
-            alert("Failed to analyze the PDF. Make sure the backend is running properly.");
+            alert("PDF Analysis Error: " + (error.message || error.toString()));
         }
     }
 

@@ -84,7 +84,9 @@ app.post('/api/upload', requireAuth, upload.single('pdf'), async (req, res) => {
         });
         
         if (!nlpResponse.ok) {
-            throw new Error(`NLP server returned ${nlpResponse.status}`);
+            const errBody = await nlpResponse.text().catch(() => '');
+            console.error(`NLP Server error (${nlpResponse.status}):`, errBody);
+            throw new Error(`NLP server returned ${nlpResponse.status}: ${errBody}`);
         }
         
         const analysis = await nlpResponse.json();

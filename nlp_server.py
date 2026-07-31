@@ -298,7 +298,9 @@ def generate_flashcards(sentences):
                 
     return flashcards
 
-@app.route('/analyze', methods=['POST'])
+@app.route('/analyze', methods=['POST', 'GET'])
+@app.route('/api/analyze', methods=['POST', 'GET'])
+@app.route('/', methods=['POST', 'GET'])
 def analyze():
     text = ""
     

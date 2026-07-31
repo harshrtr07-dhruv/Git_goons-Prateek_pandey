@@ -71,7 +71,10 @@ app.post('/api/upload', requireAuth, upload.single('pdf'), async (req, res) => {
         
         // 2. Pass the raw PDF buffer to Python NLP server
         console.log('Sending raw PDF to Python NLP server for analysis...');
-        const nlpServerUrl = process.env.NLP_SERVER_URL || 'http://127.0.0.1:5000/analyze';
+        const host = req.headers.host || 'localhost:3000';
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const defaultVercelUrl = `${protocol}://${host}/api/analyze`;
+        const nlpServerUrl = process.env.NLP_SERVER_URL || (process.env.VERCEL ? defaultVercelUrl : 'http://127.0.0.1:5000/analyze');
         const nlpResponse = await fetch(nlpServerUrl, {
             method: 'POST',
             headers: {

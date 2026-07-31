@@ -4,8 +4,12 @@ import pickle
 from flask import Flask, request, jsonify
 import nltk
 try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('punkt_tab', quiet=True)
+    nltk_data_dir = os.path.join('/tmp', 'nltk_data')
+    if not os.path.exists(nltk_data_dir):
+        os.makedirs(nltk_data_dir, exist_ok=True)
+    nltk.data.path.append(nltk_data_dir)
+    nltk.download('punkt', download_dir=nltk_data_dir, quiet=True)
+    nltk.download('punkt_tab', download_dir=nltk_data_dir, quiet=True)
 except Exception as e:
     pass
 from nltk.tokenize import sent_tokenize
@@ -16,17 +20,19 @@ import fitz  # PyMuPDF for advanced parsing
 
 app = Flask(__name__)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 print("Loading Trained Machine Learning Models...")
 try:
-    with open('models_claims.pkl', 'rb') as f:
+    with open(os.path.join(BASE_DIR, 'models_claims.pkl'), 'rb') as f:
         claims_model = pickle.load(f)
-    with open('models_defs.pkl', 'rb') as f:
+    with open(os.path.join(BASE_DIR, 'models_defs.pkl'), 'rb') as f:
         defs_model = pickle.load(f)
-    with open('models_limitations.pkl', 'rb') as f:
+    with open(os.path.join(BASE_DIR, 'models_limitations.pkl'), 'rb') as f:
         lims_model = pickle.load(f)
     print("Models loaded successfully!")
 except Exception as e:
-    print("WARNING: Could not load .pkl models. Run train_model.py first.")
+    print("WARNING: Could not load .pkl models. Run train_model.py first.", e)
     claims_model = None
     defs_model = None
     lims_model = None

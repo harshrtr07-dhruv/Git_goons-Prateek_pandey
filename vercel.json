@@ -6,11 +6,19 @@
       "use": "@vercel/node"
     },
     {
+      "src": "nlp_server.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "public/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/api/analyze",
+      "dest": "/nlp_server.py"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/server.js"

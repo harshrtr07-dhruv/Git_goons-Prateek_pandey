@@ -1,3 +1,29 @@
+function showNotification(message, type = 'error') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    const borderCol = type === 'success' ? '#00e676' : '#ff4d4d';
+    toast.style.cssText = `pointer-events: auto; background: rgba(18, 18, 22, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid ${borderCol}; color: #ffffff; padding: 14px 20px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: Inter, sans-serif; font-size: 13.5px; line-height: 1.4; max-width: 380px; word-break: break-word; transition: all 0.3s ease; opacity: 0; transform: translateY(-10px);`;
+    toast.innerHTML = `<div>${message}</div>`;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Lucide Icons
     if (typeof lucide !== 'undefined') {
@@ -113,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof supabaseClient !== 'undefined' && supabaseClient) {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
-                alert("You must be logged in to analyze a document and save it to your history.");
+                showNotification("Please log in to analyze documents and save them to history.", "error");
                 if (typeof loginModal !== 'undefined' && loginModal) {
                     loginModal.style.display = 'flex';
                 }
@@ -145,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error analyzing PDF:", error);
-            alert("PDF Analysis Error: " + (error.message || error.toString()));
+            showNotification(error.message || "Failed to analyze document", "error");
         }
     }
 
@@ -724,7 +750,7 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
                     redirectTo: window.location.origin
                 }
             });
-            if(error) alert('Error: ' + error.message);
+            if(error) showNotification(error.message, 'error');
         });
     }
 
@@ -733,11 +759,11 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
             if(!supabaseClient) return;
             const email = emailInput.value;
             const password = passwordInput.value;
-            if(!email || !password) return alert('Please enter email and password');
+            if(!email || !password) return showNotification('Please enter email and password', 'error');
             
             const { data, error } = await supabaseClient.auth.signUp({ email: email, password: password });
-            if(error) alert('Error: ' + error.message);
-            else alert('Check your email for the confirmation link!');
+            if(error) showNotification(error.message, 'error');
+            else showNotification('Check your email for the confirmation link!', 'success');
         });
     }
 
@@ -746,10 +772,10 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
             if(!supabaseClient) return;
             const email = emailInput.value;
             const password = passwordInput.value;
-            if(!email || !password) return alert('Please enter email and password');
+            if(!email || !password) return showNotification('Please enter email and password', 'error');
             
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
-            if(error) alert('Error: ' + error.message);
+            if(error) showNotification(error.message, 'error');
         });
     }
 
@@ -757,15 +783,15 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
         saveProfileBtn.addEventListener('click', async () => {
             if(!supabaseClient || !currentUser) return;
             const fullName = nameInput.value;
-            if(!fullName) return alert('Please enter your name');
+            if(!fullName) return showNotification('Please enter your name', 'error');
 
             const { data, error } = await supabaseClient
                 .from('profiles')
                 .insert([{ id: currentUser.id, email: currentUser.email, full_name: fullName }]);
             
-            if(error) alert('Error saving profile: ' + error.message);
+            if(error) showNotification('Error saving profile: ' + error.message, 'error');
             else {
-                alert('Profile saved!');
+                showNotification('Profile saved!', 'success');
                 handleUserSignedIn(currentUser);
             }
         });

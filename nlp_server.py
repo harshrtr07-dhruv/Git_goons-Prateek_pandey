@@ -302,69 +302,74 @@ def generate_flashcards(sentences):
 @app.route('/api/analyze', methods=['POST', 'GET'])
 @app.route('/', methods=['POST', 'GET'])
 def analyze():
-    text = ""
-    
-    # 1. Try reading raw PDF bytes from request body
     try:
-        pdf_bytes = request.get_data()
-        if pdf_bytes and len(pdf_bytes) > 50:
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            for page in doc:
-                text += page.get_text() + " "
-            doc.close()
-    except Exception as e:
-        print("PyMuPDF stream parse notice:", e)
-
-    # 2. Fallback to JSON payload if PyMuPDF didn't extract text
-    if not text.strip():
-        data = request.get_json(silent=True) or {}
-        text = data.get('text', '')
-    
-    if not text.strip():
-        return jsonify({"error": "No text could be extracted from the uploaded PDF"}), 400
+        text = ""
         
-    text = text.replace('\n', ' ')
-    
-    # Replace common bullet point characters with periods so they are tokenized as separate sentences
-    text = re.sub(r'[\•\▪\⁃\u2022]', '. ', text)
-    
-    try:
-        sentences = sent_tokenize(text)
-    except LookupError:
-        sentences = text.split('. ')
-    
-    sentences = [s.strip() for s in sentences if len(s.split()) > 5]
-    sentences = clean_sentences(sentences)
-    
-    tldr = generate_tldr(sentences, 3)
-    claims = extract_claims(sentences)
-    limitations = extract_limitations(sentences)
-    flashcards = generate_flashcards(sentences)
-    concept_map = build_concept_map(sentences)
-    
-    if not claims:
-        claims.append({
-            "claim": "No explicit claims found by the ML model.",
-            "evidence_quote": sentences[0] if sentences else "N/A"
+        # 1. Try reading raw PDF bytes from request body
+        try:
+            pdf_bytes = request.get_data()
+            if pdf_bytes and len(pdf_bytes) > 50:
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                for page in doc:
+                    text += page.get_text() + " "
+                doc.close()
+        except Exception as e:
+            print("PyMuPDF stream parse notice:", e)
+
+        # 2. Fallback to JSON payload if PyMuPDF didn't extract text
+        if not text.strip():
+            data = request.get_json(silent=True) or {}
+            text = data.get('text', '')
+        
+        if not text.strip():
+            return jsonify({"error": "No text could be extracted from the uploaded PDF"}), 400
+            
+        text = text.replace('\n', ' ')
+        text = re.sub(r'[\•\▪\⁃\u2022]', '. ', text)
+        
+        try:
+            sentences = sent_tokenize(text)
+        except Exception:
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+        
+        sentences = [s.strip() for s in sentences if len(s.split()) > 5]
+        sentences = clean_sentences(sentences)
+        
+        if not sentences:
+            sentences = [text[:300]]
+        
+        tldr = generate_tldr(sentences, 3)
+        claims = extract_claims(sentences)
+        limitations = extract_limitations(sentences)
+        flashcards = generate_flashcards(sentences)
+        concept_map = build_concept_map(sentences)
+        
+        if not claims:
+            claims.append({
+                "claim": "No explicit claims found by the ML model.",
+                "evidence_quote": sentences[0] if sentences else "N/A"
+            })
+        
+        if not limitations:
+            limitations.append("No explicit limitations or constraints were detected in this paper.")
+             
+        if not flashcards:
+            flashcards.append({
+                "question": "What is the primary topic?",
+                "answer": "The text discusses complex concepts that couldn't be auto-extracted."
+            })
+        
+        return jsonify({
+            "tldr": tldr,
+            "claims": claims,
+            "limitations": limitations,
+            "flashcards": flashcards,
+            "concept_map": concept_map,
+            "extractedLength": len(text)
         })
-    
-    if not limitations:
-        limitations.append("No explicit limitations or constraints were detected in this paper.")
-         
-    if not flashcards:
-        flashcards.append({
-            "question": "What is the primary topic?",
-            "answer": "The text discusses complex concepts that couldn't be auto-extracted."
-        })
-    
-    return jsonify({
-        "tldr": tldr,
-        "claims": claims,
-        "limitations": limitations,
-        "flashcards": flashcards,
-        "concept_map": concept_map,
-        "extractedLength": len(text)
-    })
+    except Exception as e:
+        print("Error during document analysis:", e)
+        return jsonify({"error": "Failed to analyze document", "details": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -86,7 +86,14 @@ app.post('/api/upload', requireAuth, upload.single('pdf'), async (req, res) => {
         if (!nlpResponse.ok) {
             const errBody = await nlpResponse.text().catch(() => '');
             console.error(`NLP Server error (${nlpResponse.status}):`, errBody);
-            throw new Error(`NLP server returned ${nlpResponse.status}: ${errBody}`);
+            let detail = 'Analysis engine notice';
+            try {
+                const parsed = JSON.parse(errBody);
+                detail = parsed.details || parsed.error || errBody;
+            } catch (e) {
+                detail = 'ML engine busy or initializing. Please re-try uploading.';
+            }
+            return res.status(500).json({ error: 'Failed to process PDF file.', details: detail });
         }
         
         const analysis = await nlpResponse.json();

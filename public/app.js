@@ -712,7 +712,12 @@ public NDArray selfAttention(NDArray query, NDArray key, NDArray value) {
     if (googleSignInBtn) {
         googleSignInBtn.addEventListener('click', async () => {
             if(!supabaseClient) return;
-            const { data, error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({ 
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
             if(error) alert('Error: ' + error.message);
         });
     }

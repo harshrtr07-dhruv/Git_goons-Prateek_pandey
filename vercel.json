@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "functions": {
+    "server.js": {
+      "maxDuration": 60
+    },
+    "nlp_server.py": {
+      "maxDuration": 60,
+      "includeFiles": "models_*.pkl"
+    }
+  },
   "builds": [
     {
       "src": "server.js",

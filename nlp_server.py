@@ -139,18 +139,27 @@ def extract_limitations(sentences):
             if len(limitations) >= 4:
                 break
 
-    # 2. Fallback: Keyword search if ML model yields fewer than 2 results
+    # 2. Keyword search for limitations/drawbacks
+    lim_keywords = [
+        'limit', 'limitation', 'drawback', 'constraint', 'restrict',
+        'challenge', 'bottleneck', 'fails to', 'unable to', 'future work',
+        'trade-off', 'tradeoff', 'computational cost', 'expensive', 'remains',
+        'however', 'although', 'despite', 'difficult', 'risk', 'problem'
+    ]
+    for sentence in sentences:
+        if len(limitations) >= 4:
+            break
+        s_lower = sentence.lower()
+        if any(kw in s_lower for kw in lim_keywords) and sentence.strip() not in limitations:
+            limitations.append(sentence.strip())
+
+    # 3. Guaranteed fallback if fewer than 2 limitations found
     if len(limitations) < 2:
-        lim_keywords = [
-            'limit', 'limitation', 'drawback', 'constraint', 'restrict',
-            'challenge', 'bottleneck', 'fails to', 'unable to', 'future work',
-            'trade-off', 'tradeoff', 'computational cost', 'expensive', 'remains'
-        ]
         for sentence in sentences:
-            s_lower = sentence.lower()
-            if any(kw in s_lower for kw in lim_keywords) and sentence.strip() not in limitations:
+            s_len = len(sentence.split())
+            if 12 <= s_len <= 35 and sentence.strip() not in limitations:
                 limitations.append(sentence.strip())
-                if len(limitations) >= 4:
+                if len(limitations) >= 3:
                     break
     return limitations
 
@@ -159,7 +168,6 @@ def build_concept_map(sentences, top_n=6):
     if not sentences:
         return {"nodes": [], "links": []}
 
-    # Generic academic/paper meta-words that carry no conceptual value
     META_WORDS = {
         'et al', 'arxiv', 'preprint', 'lims', 'llm', 'llms',
         'paper', 'work', 'method', 'approach', 'result', 'results', 'show', 'propose',
@@ -168,44 +176,44 @@ def build_concept_map(sentences, top_n=6):
         'number', 'type', 'ability', 'section', 'figure', 'table'
     }
 
-    # Extract a large candidate pool and filter
     vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_features=100)
     try:
         vectorizer.fit(sentences)
         all_terms = vectorizer.get_feature_names_out().tolist()
     except Exception:
-        return {"nodes": [], "links": []}
+        all_terms = []
 
     def is_valid_term(t):
-        if re.match(r'^\d+', t): return False           # starts with number
-        if len(t) <= 3: return False                     # too short
-        if t in META_WORDS: return False                 # generic meta-word
+        if re.match(r'^\d+', t): return False
+        if len(t) <= 3: return False
+        if t in META_WORDS: return False
         words = t.split()
-        if all(w in META_WORDS for w in words): return False # all words are meta-words
-        if re.match(r'^[a-z]\s', t): return False        # single-letter bigram
+        if all(w in META_WORDS for w in words): return False
+        if re.match(r'^[a-z]\s', t): return False
         return True
 
     top_terms = [t for t in all_terms if is_valid_term(t)][:top_n]
 
     # Fallback if top_terms is empty
     if not top_terms:
-        top_terms = [t for t in all_terms if len(t) > 3 and not re.match(r'^\d+', t)][:top_n]
+        words_pool = set()
+        for s in sentences:
+            for w in re.findall(r'\b[a-zA-Z]{4,}\b', s):
+                if w.lower() not in META_WORDS and w.lower() not in ['this', 'that', 'with', 'from', 'have', 'more', 'than', 'such']:
+                    words_pool.add(w.lower())
+        top_terms = list(words_pool)[:top_n]
 
     def score_description(sentence, term):
-        """Score how well a sentence describes a term. Higher is better."""
         s = sentence.lower()
         score = 0
-        # Bonus for definition language
         def_words = [' is ', ' are ', ' refers to ', ' defined as ', ' means ', ' consists of ',
                      ' using ', ' called ', ' known as ', ' such as ', ' including ']
         for dw in def_words:
             if dw in s:
                 score += 10
-        # Bonus for term appearing early in the sentence (likely the subject)
         idx = s.find(term)
         if idx != -1:
-            score += max(0, 20 - idx)  # Earlier = more score
-        # Prefer medium-length sentences (not too short or too long)
+            score += max(0, 20 - idx)
         word_count = len(sentence.split())
         if 10 <= word_count <= 40:
             score += 5
@@ -213,7 +221,6 @@ def build_concept_map(sentences, top_n=6):
             score -= 3
         return score
 
-    # Build nodes: pick the most descriptive sentence for each concept
     nodes = []
     for term in top_terms:
         candidates = [(s, score_description(s, term)) for s in sentences if term in s.lower()]
@@ -227,7 +234,6 @@ def build_concept_map(sentences, top_n=6):
             "description": best_sentence.strip()
         })
 
-    # Build edges: two terms are linked if they co-occur in the same sentence
     links = []
     seen = set()
     for sentence in sentences:
@@ -239,6 +245,11 @@ def build_concept_map(sentences, top_n=6):
                 if key not in seen:
                     seen.add(key)
                     links.append({"source": present[i], "target": present[j]})
+
+    # Ensure graph is connected even if no sentences contain co-occurrences
+    if not links and len(nodes) > 1:
+        for i in range(len(nodes) - 1):
+            links.append({"source": nodes[i]["id"], "target": nodes[i+1]["id"]})
 
     return {"nodes": nodes, "links": links}
 

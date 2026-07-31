@@ -217,12 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 4. Update Limitations
         const limitationsList = document.getElementById('limitationsList');
-        if (limitationsList && analysis.limitations && analysis.limitations.length > 0) {
+        if (limitationsList) {
             limitationsList.innerHTML = '';
-            analysis.limitations.forEach(lim => {
+            const lims = (analysis.limitations && analysis.limitations.length > 0) 
+                ? analysis.limitations 
+                : ["No explicit limitations or constraints were detected in this paper."];
+            lims.forEach(lim => {
                 const limHtml = `
-                    <div class="glass-box" style="margin-bottom: 1rem; border-left: 4px solid #ff9a9e;">
-                        <p class="secondary-text" style="color: var(--text-primary);"><i data-lucide="alert-circle" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 0.5rem; color: #ff9a9e;"></i> ${lim}</p>
+                    <div class="glass-box" style="margin-bottom: 1rem; padding: 1rem; border-left: 4px solid #ff9a9e; background: rgba(255, 154, 158, 0.05);">
+                        <p class="secondary-text" style="color: var(--text-primary); margin: 0; font-size: 0.95rem;"><i data-lucide="alert-circle" style="width: 18px; height: 18px; display: inline-block; vertical-align: middle; margin-right: 0.5rem; color: #ff9a9e;"></i> ${lim}</p>
                     </div>
                 `;
                 limitationsList.innerHTML += limHtml;
@@ -238,6 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!analysis || !analysis.concept_map) return;
         const mapContainer = document.getElementById('conceptMapContainer');
         if (mapContainer && analysis.concept_map.nodes && typeof d3 !== 'undefined') {
+            mapContainer.style.display = 'block';
+            mapContainer.style.position = 'relative';
             mapContainer.innerHTML = ''; // Clear empty state
             
             const width = Math.max(mapContainer.clientWidth || 0, 600);
@@ -247,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .append('svg')
                 .attr('width', '100%')
                 .attr('height', '100%')
+                .style('display', 'block')
                 .attr('viewBox', [0, 0, width, height]);
 
             // Deep copy to prevent d3 from mutating original data
